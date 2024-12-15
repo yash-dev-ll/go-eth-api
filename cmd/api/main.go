@@ -2,14 +2,21 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/yash-dev-ll/eth-wallet/internal/handlers"
 	"github.com/yash-dev-ll/eth-wallet/pkg/wallet"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
+
 	keyStoreDir := "./keystore"
 	keyStoreManager, err := wallet.NewKeystoreManager(keyStoreDir)
 
@@ -17,7 +24,7 @@ func main() {
 		log.Fatal("Failed to create keystore manager: %w", err)
 	}
 
-	client, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/x9HZoP9QSiI2amPmlBHsV_lZyhJndl6P")
+	client, err := ethclient.Dial(os.Getenv("ETH_RPC_URL"))
 
 	if err != nil {
 		log.Fatal("Failed to connect to the Ethereum network: %w", err)
