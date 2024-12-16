@@ -2,23 +2,21 @@ package handlers
 
 import (
 	"log"
+	"math/big"
 	"net/http"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
-	"github.com/yash-dev-ll/eth-wallet/pkg/wallet"
+	"github.com/yash-dev-ll/eth-wallet/internal/services"
 )
 
 type WalletHandler struct {
-	KeyStore *wallet.KeyStoreManager
-	Client   *ethclient.Client
+	WalletService *services.WalletService
 }
 
 func (h *WalletHandler) CheckBalanceHandler(c *gin.Context) {
 	address := c.Param("address")
 
-	balance, err := wallet.CheckBalance(c, h.Client, address)
+	balance, err := h.WalletService.CheckBalance(c, address)
 
 	if err != nil {
 		log.Printf("Failed to check balance: %v", err)
@@ -40,14 +38,14 @@ func (h *WalletHandler) CreateWalletKeyStoreHandler(c *gin.Context) {
 		return
 	}
 
-	account, err := h.KeyStore.CreateWallet(req.Password)
+	account, err := h.WalletService.CreateWallet(req.Password)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create wallet"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"address": account.Address.Hex()})
+	c.JSON(http.StatusOK, gin.H{"address": account})
 
 }
 
@@ -62,7 +60,7 @@ func (h *WalletHandler) LoadWalletKeyStoreHandler(c *gin.Context) {
 		return
 	}
 
-	privateKey, err := h.KeyStore.LoadWallet(req.Address, req.Password)
+	privateKey, err := h.WalletService.LoadWallet(req.Address, req.Password)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load wallet"})
@@ -71,6 +69,29 @@ func (h *WalletHandler) LoadWalletKeyStoreHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Wallet loaded successfully",
-		"private_key": crypto.PubkeyToAddress(privateKey.PublicKey).Hex(),
+		"private_key": privateKey,
 	})
+}
+
+func (h *WalletHandler) TransferEthHandler(c *gin.Context) {
+	var req struct {
+		From     string  `json:"from"`
+		To       string  `json:"to"`
+		Amount   float64 `json:"amount"`
+		Password string  `json:"password"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	txHash, err := h.WalletService.TransferEth(c, req.From, req.To, big.NewFloat(req.Amount), req.Password)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transfer eth"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"tx_hash": txHash})
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/yash-dev-ll/eth-wallet/internal/handlers"
+	"github.com/yash-dev-ll/eth-wallet/internal/services"
 	"github.com/yash-dev-ll/eth-wallet/pkg/wallet"
 )
 
@@ -31,13 +32,16 @@ func main() {
 
 	}
 
-	walletHandler := handlers.WalletHandler{Client: client, KeyStore: keyStoreManager}
+	walletService := services.NewWalletService(client, keyStoreManager)
+
+	walletHandler := handlers.WalletHandler{WalletService: walletService}
 
 	r := gin.Default()
 
 	r.GET("/wallet/:address/balance", walletHandler.CheckBalanceHandler)
 	r.POST("/wallet/new/keystore", walletHandler.CreateWalletKeyStoreHandler)
 	r.GET("/wallet/keystore", walletHandler.LoadWalletKeyStoreHandler)
+	r.POST("/wallet/transferEth", walletHandler.TransferEthHandler)
 
 	err = r.Run(":9001")
 
